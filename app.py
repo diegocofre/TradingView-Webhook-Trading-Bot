@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def hello_trader():
-    return "<p>Hello young trader!</p>"
+    return "<p>Hello Dawid!</p>"
 
 @app.route("/tradingview-to-webhook-order", methods=['POST'])
 def tradingview_webhook():
