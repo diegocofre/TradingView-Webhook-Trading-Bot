@@ -17,7 +17,7 @@ class ByBit:
     # =============== SIGN, POST AND REQUEST ===============
 
     def _try_request(self, method: str, **kwargs):
-        session = HTTP(api_key=self.api_key, api_secret=self.api_secret)
+        session = HTTP(testnet=True,api_key=self.api_key, api_secret=self.api_secret)
         try:
             if method == 'get_wallet_balance':
                 req = session.get_wallet_balance(accountType="UNIFIED", coin=kwargs.get('coin'))
@@ -32,7 +32,7 @@ class ByBit:
                                           reduceOnly=kwargs.get('reduce_only'), 
                                           closeOnTrigger=kwargs.get('close_on_trigger'))
             elif method == 'place_conditional_order':
-                req = session.place_conditional_order(category="linear", symbol=kwargs.get('symbol'),
+                req = session.place_order(category="linear", symbol=kwargs.get('symbol'),
                                                       side=kwargs.get('side'), order_type=kwargs.get('order_type'),
                                                       qty=kwargs.get('qty'), price=kwargs.get('price'),
                                                       basePrice=kwargs.get('base_price'), 
