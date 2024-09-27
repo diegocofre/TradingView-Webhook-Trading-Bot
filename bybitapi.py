@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 class ByBit:
     def __init__(self, var: dict):
-        self.subaccount_name = var['subaccount_name']
+        #self.subaccount_name = var['subaccount_name']
         self.leverage = var['leverage']
         self.risk = var['risk']
         self.api_key = var['api_key']
@@ -18,21 +18,31 @@ class ByBit:
 
     def _try_request(self, method: str, **kwargs):
         session = HTTP(testnet=True,api_key=self.api_key, api_secret=self.api_secret)
+        category = kwargs.get('category','linear')
         try:
             if method == 'get_wallet_balance':
                 req = session.get_wallet_balance(accountType="UNIFIED", coin=kwargs.get('coin'))
             elif method == 'my_position':
-                req = session.get_positions(category="linear", symbol=kwargs.get('symbol'))
+                req = session.get_positions(category= category, symbol=kwargs.get('symbol'))
             elif method == 'place_active_order':
-                req = session.place_order(category="linear", symbol=kwargs.get('symbol'), 
-                                          side=kwargs.get('side'), orderType=kwargs.get('order_type'), 
-                                          qty=kwargs.get('qty'), price=kwargs.get('price', None), 
-                                          stopLoss=kwargs.get('stop_loss', None), 
-                                          timeInForce=kwargs.get('time_in_force'), 
-                                          reduceOnly=kwargs.get('reduce_only'), 
-                                          closeOnTrigger=kwargs.get('close_on_trigger'))
+                order_params = {
+                    "category": category ,
+                    "symbol": kwargs.get('symbol'),
+                    "side": kwargs.get('side'),
+                    "orderType": kwargs.get('order_type'),
+                    "qty": kwargs.get('qty'),
+                    "timeInForce": kwargs.get('time_in_force'),
+                    "reduceOnly": kwargs.get('reduce_only'),
+                    "closeOnTrigger": kwargs.get('close_on_trigger')
+                }
+                if 'price' in kwargs:
+                    order_params['price'] = kwargs['price']
+                if 'stop_loss' in kwargs:
+                    order_params['stopLoss'] = kwargs['stop_loss']
+                
+                req = session.place_order(**order_params)
             elif method == 'place_conditional_order':
-                req = session.place_order(category="linear", symbol=kwargs.get('symbol'),
+                req = session.place_order(category=category, symbol=kwargs.get('symbol'),
                                                       side=kwargs.get('side'), order_type=kwargs.get('order_type'),
                                                       qty=kwargs.get('qty'), price=kwargs.get('price'),
                                                       basePrice=kwargs.get('base_price'), 
@@ -42,12 +52,14 @@ class ByBit:
                                                       reduceOnly=kwargs.get('reduce_only'), 
                                                       closeOnTrigger=kwargs.get('close_on_trigger'))
             elif method == 'cancel_all_active_orders':
-                req = session.cancel_all_orders(category="linear", symbol=kwargs.get('symbol'))
+                req = session.cancel_all_orders(category=category, symbol=kwargs.get('symbol'))
             elif method == 'set_trading_stop':
-                req = session.set_trading_stop(category="linear", symbol=kwargs.get('symbol'), 
+                req = session.set_trading_stop(category=category, symbol=kwargs.get('symbol'), 
                                                side=kwargs.get('side'), stopLoss=kwargs.get('stop_loss'))
             elif method == 'query_symbol':
-                req = session.get_instruments_info(category="linear")
+                req = session.get_instruments_info(category=category)
+            elif method == 'get_tickers':
+                req = session.get_tickers(category=category, symbol=kwargs.get('symbol'))  
         except Exception as e:
             logbot.logs('>>> /!\ An exception occurred: {}'.format(e), True)
             return {
@@ -73,7 +85,91 @@ class ByBit:
             return round(step_size, decimal)
         return step_size
     
+    def _parse_ticker(self, ticker, side=None):
+        parts = ticker.split('-')
+        if len(parts) != 2:
+            raise ValueError(f"Invalid ticker format: {ticker}")
+        
+        class TickerInfo:
+            def __init__(self, symbol, buy=None, sell=None):
+                self.symbol = symbol
+                self.buy = buy
+                self.sell = sell
+        
+        if side is None:
+            return TickerInfo(symbol=parts[0] + parts[1])
+        elif side == 'Buy':
+            return TickerInfo(symbol=parts[0] + parts[1], buy=parts[0], sell=parts[1])
+        elif side == 'Sell':
+            return TickerInfo(symbol=parts[0] + parts[1], buy=parts[1], sell=parts[0])
+        else:
+            raise ValueError(f"Invalid side value: {side}")
+    
     # ================== ORDER FUNCTIONS ==================
+
+    def entry_spot_position(self, ticker, side):
+        orders = []
+        tkinfo = self._parse_ticker(ticker, side) 
+
+        r = self._try_request('get_wallet_balance', coin=tkinfo.sell)
+        if not r['success']:
+            return r
+        
+        list = r['result']['list']
+        # Encontrar el diccionario que tiene 'coin' igual a sell
+        sell_coin_info = next((item for account in list for item in account['coin'] if item['coin'] == tkinfo.sell), None)
+
+        if sell_coin_info:
+           size = round(float(sell_coin_info['walletBalance']), 6)
+           
+        if not size: 
+            return {
+                "success": False,
+                "error": f"{tkinfo.sell} balance not found"
+            }
+
+        logbot.logs(f'>>> Found {size} {tkinfo.sell} to sell')     
+        
+        # if side == 'Buy':
+        #     r = self._try_request('get_tickers', category='spot', symbol=tkinfo.symbol)
+        #     if not r['success']:
+        #         return r
+            
+        #     symbol_info = next((item for item in r['result']['list'] if item['symbol'] == tkinfo.symbol), None)
+        #     if not symbol_info:
+        #         return {
+        #         "success": False,
+        #         "error": f"Symbol {tkinfo.symbol} not found"
+        #         }
+            
+        #     current_price = float(symbol_info['lastPrice'])
+        #     logbot.logs(f'>>> Current price of {tkinfo.symbol} is {current_price}')
+            
+        #     # Calculate the quantity to buy with a 0.1 margin of error
+        #     size = round((size * (1 - 0.3)) / current_price, 4)
+        #     logbot.logs(f'>>> Calculated size to buy: {size}')
+            
+        size = round(size * 0.999, 5) 
+            
+        r = self._try_request('place_active_order', 
+                            category='spot',
+                            symbol= tkinfo.symbol, 
+                            side= side, 
+                            order_type='Market', 
+                            qty=size, 
+                            time_in_force="GoodTillCancel", 
+                            reduce_only=False, 
+                            close_on_trigger=False)
+        if not r['success']:
+            r['orders'] = orders
+            return r
+        orders.append(r['result'])
+        logbot.logs(f">>> Order {side} {tkinfo.symbol} {size} posted with success")
+        
+        return {
+            "success": True,
+            "orders": orders
+        }
 
     def entry_position(self, payload: dict, ticker):
         #   PLACE ORDER
@@ -251,7 +347,8 @@ class ByBit:
 
     def exit_position(self, ticker):
         #   CLOSE POSITION IF ONE IS ONGOING
-        r = self._try_request('my_position', symbol=ticker)
+        tkinfo = self._parse_ticker(ticker)   
+        r = self._try_request('my_position', symbol=tkinfo.symbol)
         if not r['success']:
             return r
         logbot.logs(">>> Retrieve positions")
@@ -263,7 +360,7 @@ class ByBit:
                 close_side = 'Sell' if open_side == 'Buy' else 'Buy'
                 
                 r = self._try_request('place_active_order', 
-                                    symbol=ticker,
+                                    symbol=tkinfo.symbol,
                                     side=close_side,
                                     order_type="Market",
                                     qty=open_size,
@@ -279,7 +376,7 @@ class ByBit:
                 break
 
         #   DELETE ALL ORDERS REMAINING
-        r = self._try_request('cancel_all_active_orders', symbol=ticker)
+        r = self._try_request('cancel_all_active_orders', symbol=tkinfo.symbol)
         if not r['success']:
             return r
 
@@ -319,28 +416,3 @@ class ByBit:
             "orders": orders
         }
 
-@app.route("/tradingview-to-discord-study", methods=['POST'])
-def discord_study_tv():
-    logbot.logs("========== STUDY ==========")
-    
-    data = json.loads(request.data)
-
-    webhook_passphrase = os.environ.get('WEBHOOK_PASSPHRASE', config.WEBHOOK_PASSPHRASE)
-
-    if 'passphrase' not in data.keys():
-        logbot.logs(">>> /!\ No passphrase entered", True)
-        return {
-            "success": False,
-            "message": "no passphrase entered"
-        }
-
-    if data['passphrase'] != webhook_passphrase:
-        logbot.logs(">>> /!\ Invalid passphrase", True)
-        return {
-            "success": False,
-            "message": "invalid passphrase"
-        }
-
-    orders = order(data)
-    print(orders)
-    return orders

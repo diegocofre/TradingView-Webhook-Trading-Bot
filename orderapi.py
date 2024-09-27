@@ -3,7 +3,7 @@ import json, os, config
 from ftxapi import Ftx
 from bybitapi import ByBit
 
-subaccount_name = 'SUBACCOUNT_NAME'
+exchange = 'SUBACCOUNT_NAME'
 leverage = 1.0
 risk = 1.0 / 100
 api_key = 'API_KEY'
@@ -14,38 +14,25 @@ api_secret = 'API_SECRET'
 
 
 def global_var(payload):
-    global subaccount_name
+    global exchange
     global leverage
     global risk
     global api_key
     global api_secret
 
-    subaccount_name = payload['subaccount']
+    exchange = payload['exchange']
+    
+    leverage = os.environ.get('LEVERAGE', config.LEVERAGE)
+    leverage = float(leverage)
 
-    if subaccount_name == 'Testing':
-        leverage = os.environ.get('LEVERAGE_TESTING', config.LEVERAGE_TESTING)
-        leverage = float(leverage)
+    risk = os.environ.get('RISK', config.RISK)
+    risk = float(risk) / 100    
 
-        risk = os.environ.get('RISK_TESTING', config.RISK_TESTING)
-        risk = float(risk) / 100
-
-        api_key = os.environ.get('API_KEY_TESTING', config.API_KEY_TESTING)
-
-        api_secret = os.environ.get('API_SECRET_TESTING', config.API_SECRET_TESTING)
-
-    elif subaccount_name == 'MYBYBITACCOUNT':
-        leverage = os.environ.get('LEVERAGE_MYBYBITACCOUNT', config.LEVERAGE_MYBYBITACCOUNT)
-        leverage = float(leverage)
-
-        risk = os.environ.get('RISK_MYBYBITACCOUNT', config.RISK_MYBYBITACCOUNT)
-        risk = float(risk) / 100
-
-        api_key = os.environ.get('API_KEY_MYBYBITACCOUNT', config.API_KEY_MYBYBITACCOUNT)
-
-        api_secret = os.environ.get('API_SECRET_MYBYBITACCOUNT', config.API_SECRET_MYBYBITACCOUNT)
-
+    if exchange == 'BYBIT':
+        api_key = os.environ.get('BYBIT_API_KEY', config.BYBIT_API_KEY)
+        api_secret = os.environ.get('BYBIT_API_SECRET', config.BYBIT_API_SECRET)
     else:
-        logbot.logs(">>> /!\ Subaccount name not found", True)
+        logbot.logs(">>> Exchange name not found!", True)
         return {
             "success": False,
             "error": "subaccount name not found"
@@ -66,7 +53,7 @@ def order(payload: dict):
         return glob
     
     init_var = {
-        'subaccount_name': subaccount_name,
+        #'exchange': exchange,
         'leverage': leverage,
         'risk': risk,
         'api_key': api_key,
@@ -89,7 +76,7 @@ def order(payload: dict):
         }
 
     logbot.logs('>>> Exchange : {}'.format(exchange))
-    logbot.logs('>>> Subaccount : {}'.format(subaccount_name))
+    logbot.logs('>>> Subaccount : {}'.format(exchange))
 
     #   FIND THE APPROPRIATE TICKER IN DICTIONNARY
     ticker = ""
@@ -124,6 +111,13 @@ def order(payload: dict):
         logbot.logs(">>> Order message : 'breakeven'")
         breakeven_res = exchange_api.breakeven(payload, ticker)
         return breakeven_res
+    
+    elif payload['message']== 'pivot':
+        logbot.logs(">>> Order message : 'pivot'")
+        #exchange_api.exit_position(ticker)
+
+        pivot_res = exchange_api.entry_spot_position(ticker, payload['side'])
+        return pivot_res
     
     else:
         logbot.logs(f">>> Order message : '{payload['message']}'")
