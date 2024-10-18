@@ -1,0 +1,244 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+
+//@version=5
+strategy('my 12 DAX Stephan', overlay=true, process_orders_on_close = true, pyramiding=4)
+
+len = input(14)
+//Green Line
+Line_top = input(43,title="line +",group="Green treshold")
+Line_bottom = input(36, title="line -",group="Green treshold")
+//Riemann
+float z = input.float(1, "R1", minval = -100, maxval = 100, step=0.01,group="Riemann")
+int i = input.int(1, "R2", minval = -100, maxval = 100,group="Riemann")
+float z1 = math.pow(z,2)
+float u = math.pow(((z1 - 1)*(z - 2 - i)),2)
+//Fibo
+float f = input.float(3, "Fibo mult", minval = -100, maxval = 100, step=0.1,group="Fibo(Red line)")
+int f1 = input.int(2, "Fibo power", minval = -10, maxval = 10, step=1,group="Fibo(Red line)")
+float n1 = math.pow((f + 2.23606797749979),f1) 
+
+//ADX multiplier
+float n2 = math.pow((f - 2.23606797749979),f1) 
+//ADX multiplier//math.pi
+float n3 = math.pow(3,2)/math.pi 
+float M1 = input.float(1, "ADX Mult1", minval = -100, maxval = 100, step=0.1,group="ADX multiplier(White line)")
+float M2 = input.float(10, "ADX Mult2", minval = -100, maxval = 100, step=0.1,group="ADX multiplier(White line)")
+// Calculate Fibonacci
+F = (n1 - n2 / (n3*2.23606797749979))
+R = (u / (z1 + 2 + 2*i))
+//DX Riemann
+float z3 = input.float(1, "R1", minval = -100, maxval = 100, step=0.1,group="DX Riemann(White and Yellow line)")
+int i1 = input.int(1, "R2", minval = -100, maxval = 100, group="DX Riemann(White and Yellow line)")
+float z11 = math.pow(z3,2)
+float u1 = math.pow(((z11 - 1)*(z3 - 2 - i1)),2)
+R1 = (u1 / (z11 + 2 + 2*i1))
+
+// Pyramiding
+bool pyramidPercentage = input.bool(true, "Enable %", group="Pyramiding")
+float pyramid1Percentage = input.float(1, "2nd entry %", minval=0, maxval=100, step=0.1, group="Pyramiding")
+float pyramid2Percentage = input.float(1, "3rd entry %", minval=0, maxval=100, step=0.1, group="Pyramiding")
+float pyramid3Percentage = input.float(1, "4th entry %", minval=0, maxval=100, step=0.1, group="Pyramiding")
+bool pyramidPoints = input.bool(false, "Enable points", group="Pyramiding")
+int pyramid1Points = input.int(1, "2nd entry points", minval=-10000, maxval=1000, step=10, group="Pyramiding")
+int pyramid2Points = input.int(1, "3rd entry points", minval=-10000, maxval=1000, step=10, group="Pyramiding")
+int pyramid3Points = input.int(1, "4th entry points", minval=-10000, maxval=1000, step=10, group="Pyramiding")
+
+bool enableEntry1 = input.bool(true, "Enable entry 1", group="Pyramiding")
+bool enableEntry2 = input.bool(true, "Enable entry 2", group="Pyramiding")
+bool enableEntry3 = input.bool(true, "Enable entry 3", group="Pyramiding")
+bool enableEntry4 = input.bool(true, "Enable entry 4", group="Pyramiding")
+
+Pi = math.pi
+Phi = math.phi
+
+TrueRange = math.max(math.max(high - low, math.abs(high - nz(close[1]))), math.abs(low - nz(close[1])))
+DirectionalMovementPlus = high - nz(high[1]) > nz(low[1]) - low ? math.max(high - nz(high[1]), 0) : 0/R/F
+DirectionalMovementMinus = nz(low[1]) - low > high - nz(high[1]) ? math.max(nz(low[1]) - low, 0) : 0
+
+SmoothedTrueRange = 0.0 
+SmoothedTrueRange := nz(SmoothedTrueRange[1]) - nz(SmoothedTrueRange[1]) / len + TrueRange
+
+SmoothedDirectionalMovementPlus = 0.0
+SmoothedDirectionalMovementPlus := nz(SmoothedDirectionalMovementPlus[1]) - nz(SmoothedDirectionalMovementPlus[1]) / len + DirectionalMovementPlus
+
+SmoothedDirectionalMovementMinus = 0.0
+SmoothedDirectionalMovementMinus := nz(SmoothedDirectionalMovementMinus[1]) - nz(SmoothedDirectionalMovementMinus[1]) / len + DirectionalMovementMinus
+
+DIPlus = SmoothedDirectionalMovementPlus / SmoothedTrueRange * 100 + F
+DIMinus = SmoothedDirectionalMovementMinus / SmoothedTrueRange * 100 - F
+DX = math.abs(DIPlus - DIMinus) / math.abs(DIPlus + DIMinus) * M1 * R1
+ADX = ta.sma(DX, len) * M2
+
+plot(DX, color=color.new(#eeff52, 0), title='DX')
+plot(ADX, color=color.new(#ededee, 0), title='ADX')
+plot(DIPlus, color=color.new(color.green, 0), title='DI+')
+plot(DIMinus, color=color.new(color.red, 0), title='DI-')
+hline(Line_top, color=color.rgb(9, 255, 0))
+hline(Line_bottom, color=color.rgb(9, 255, 0))
+
+inTrade = strategy.position_size > 0
+notInTrade = strategy.position_size <= 0
+
+nTrades = strategy.opentrades
+isLong = strategy.position_size > 0
+isShort = strategy.position_size < 0
+
+enterLong  = ta.crossover(ADX, Line_bottom)
+goLongCondition1= ta.crossover(DIMinus, Line_bottom)
+
+enterShort = ta.crossunder(ADX, Line_top)
+goShortCondition1= ta.crossunder(DIPlus, Line_top)
+
+exitLong = ta.crossunder(ADX, Line_top)
+exitLongCondition1 = ta.crossunder(DIPlus, Line_top)
+exitLongCondition2 = ta.crossunder(DIPlus, ADX)
+exitLongCondition3 = ta.crossunder(ADX, Line_bottom)
+
+enterLongAny = enterLong or goLongCondition1
+exitLongAny = exitLong or exitLongCondition1 or exitLongCondition2 or exitLongCondition3
+
+gSt = "Strategy Settings"
+
+openLong = input(true,"Long",group = gSt)
+openShort = input(true,"Short",group = gSt)
+
+gTpSl = "TP/SL Settings"
+
+useBox = input(false,"Use Box Height",group = gTpSl)
+slLevel = input.float(50,"SL",inline = "SL",group = gTpSl)
+slType = input.string("Point"," ",options=["Point","Percent"] ,inline = "SL",group = gTpSl)
+
+onTp1 = true
+tp1Level = input.float(50,"TP1/Main TP",inline = "TP1",group = gTpSl)
+tp1Type = input.string("Point"," ",options=["Point","Percent"] ,inline = "TP1",group = gTpSl)
+
+onTp2 = input(false,"TP2",inline = "TP2",group = gTpSl)
+tp2Level = input.float(100," ",inline = "TP2",group = gTpSl)
+tp2Type = input.string("Point"," ",options=["Point","Percent"] ,inline = "TP2",group = gTpSl)
+
+onTp3 = input(false,"TP3",inline = "TP3",group = gTpSl)
+tp3Level = input.float(150," ",inline = "TP3",group = gTpSl)
+tp3Type = input.string("Point"," ",options=["Point","Percent"] ,inline = "TP3",group = gTpSl)
+
+tpAmount = input.float(15,"TP Amount",group = gTpSl)
+
+rule3 = input(false,"Rule 3",tooltip = "If for example price reach TP1 and then will go farther and do not come back below or touching TP1 level close TP1 as it should be closed in the original strategy requirements and wait for TP2 and TP3 signals. If then price do not reach TP2 or TP3 and come back to TP1 level close TP2 and TP3 on TP1 level.")
+rule4 = input(false,"Rule 4",inline = "R4",tooltip ="If the price go above TP1 close TP1 and then come back below TP1 and no more go above it close all when it touch entry level otherwise close at higher levels (2 options to choose: close all at TP1 or close all on SL).")
+rule4Options = input.string("TP1 Level"," ", options = ["TP1 Level","Entry Level","SL Level"],inline = "R4")
+rule5 = input(false,"Rule 5",tooltip = "move SL to level higher every time we reach next TP level. So If TP1 is reached than SL goes to entry level point. Please again use it as separate option to be on/off in inputs tab of the strategy.")
+
+if rule5 and rule3
+    runtime.error("Rule 3 and Rule 5 Can't Be Used Together")
+
+if rule4 and rule5
+    runtime.error("Rule 4 and Rule 5 Can't Be Used Together")
+
+showTracker = input(true,"Show Position Tracker")
+
+var rule3Step1 = false
+var rule3Step2 = false
+
+var entry = 0.0
+var sl = 0.0
+var tp1 = 0.0
+var tp2 = 0.0
+var tp3 = 0.0
+
+calcLevel(entryLevel, value, levelType, dir)=>
+    result = 0.0
+    result := levelType=="Percent" ? entryLevel * (1+value/100*dir) : entryLevel + value*syminfo.mintick*dir
+    result
+
+// *** Positions ***
+if enterLong and strategy.position_size == 0 and openLong
+    entry := close
+    sl := calcLevel(entry, slLevel, slType, -1)
+    tp1 := calcLevel(entry, tp1Level, tp1Type, 1)
+    tp2 := calcLevel(entry, tp2Level, tp2Type, 1)
+    tp3 := calcLevel(entry, tp3Level, tp3Type, 1)
+    strategy.entry("Long", strategy.long)
+    rule3Step1 := false
+    rule3Step2 := false
+
+if enterShort and strategy.position_size == 0 and openShort
+    entry := close
+    sl := calcLevel(entry, slLevel, slType, 1)
+    tp1 := calcLevel(entry, tp1Level, tp1Type, -1)
+    tp2 := calcLevel(entry, tp2Level, tp2Type, -1)
+    tp3 := calcLevel(entry, tp3Level, tp3Type, -1)
+    strategy.entry("Short", strategy.short)
+    rule3Step1 := false
+    rule3Step2 := false
+
+if rule3
+    if rule3Step1 == false
+        if (strategy.position_size > 0 and close > tp1) or (strategy.position_size < 0 and close < tp1)
+            sl := switch 
+                rule4 and rule4Options == "TP1 Level" => tp1
+                rule4 and rule4Options == "Entry Level" => entry
+                rule4 and rule4Options == "SL Level" => sl
+                => tp1
+            rule3Step1 := true
+    if rule3Step2 == false
+        if (strategy.position_size > 0 and close > tp2) or (strategy.position_size < 0 and close < tp2)
+            sl := tp2
+            rule3Step2 := true
+
+if rule4
+    if rule3Step1 == false
+        if (strategy.position_size > 0 and close > tp1) or (strategy.position_size < 0 and close < tp1)
+            sl := switch 
+                rule4 and rule4Options == "TP1 Level" => tp1
+                rule4 and rule4Options == "Entry Level" => entry
+                rule4 and rule4Options == "SL Level" => sl
+                => sl
+            rule3Step1 := true
+
+if rule5
+    if rule3Step1 == false
+        if (strategy.position_size > 0 and close > tp1) or (strategy.position_size < 0 and close < tp1)
+            sl := entry
+            rule3Step1 := true
+    if rule3Step2 == false
+        if (strategy.position_size > 0 and close > tp2) or (strategy.position_size < 0 and close < tp2)
+            sl := tp1
+            rule3Step2 := true
+
+if strategy.position_size != 0
+    posType = strategy.position_size > 0 ? "Long" : "Short"
+    if onTp1
+        amount = onTp2 == false and onTp3 == false ? 100 : tpAmount
+        ticket = onTp2 == false and onTp3 == false ? "exit" : "tp1"
+        strategy.exit("Exit1", posType, qty_percent = amount, stop = sl, limit = tp1, comment_profit = ticket, comment_loss = "sl", alert_message = ticket)
+
+    if onTp2
+        amount = onTp3 == false ? 100 : tpAmount
+        ticket = onTp3 == false ? "exit" : "tp2"
+        strategy.exit("Exit2", posType, qty_percent = amount, stop = sl, limit = tp2, comment_profit = ticket, comment_loss = "sl", alert_message = ticket)
+
+    if onTp3
+        amount = 100
+        ticket = "exit"
+        strategy.exit("Exit3", posType, qty_percent = amount, stop = sl, limit = tp3, comment_profit = ticket, comment_loss = "sl", alert_message = ticket)
+
+posSize = strategy.position_size
+entry := switch 
+    posSize > 0 => math.max(entry, sl)
+    posSize < 0 => math.min(entry, sl)
+    => entry
+
+pEntry = plot(showTracker and posSize != 0 ? entry: na, title="Entry", color=color.blue, style=plot.style_linebr)
+pSL = plot(showTracker and posSize != 0 ? sl: na, title="SL", color=color.red, style=plot.style_linebr)
+pTp1 = plot(showTracker and (posSize > 0 ? tp1 > sl : tp1 < sl) and posSize != 0 ? tp1: na, title="TP1", color=color.green, style=plot.style_linebr)
+pTp2 = plot(showTracker and (posSize > 0 ? tp2 > sl : tp2 < sl) and posSize != 0 and onTp2 ? tp2: na, title="TP2", color=color.green, style=plot.style_linebr)
+pTp3 = plot(showTracker and (posSize > 0 ? tp3 > sl : tp3 < sl) and posSize != 0 and onTp3 ? tp3: na, title="TP3", color=color.green, style=plot.style_linebr)
+
+maxTp = switch 
+    onTp3 => tp3
+    onTp2 => tp2
+    onTp1 => tp1
+
+pTpMax = plot(showTracker and (posSize > 0 ? maxTp > sl : maxTp < sl) and posSize != 0 ? maxTp: na, title="TP", color=color.new(color.green,100), style=plot.style_linebr, editable=false)
+
+fill(pEntry, pSL, color=color.new(color.red,80), title="SL Zone")
+fill(pEntry, pTpMax, color=color.new(color.green,80), title="TP Zone")

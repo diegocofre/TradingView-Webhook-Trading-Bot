@@ -92,5 +92,25 @@
         "passphrase": "abcdefg", 
         "subaccount": "Testing",
         "chart_url" : "https://www.tradingview.com/chart/jbSLq0oe"
+    },
+        "study alert" : {
+        "ticker": {{ticker}}, 
+        "exchange": {{exchange}}, 
+        "action": "buy", 
+        "type": "limit", 
+        "price": {{close}}, 
+        "message": "entry", 
+        "long SL": {{plot("Long SL")}}, 
+        "long TP": {{plot("Long TP")}}, 
+        "passphrase": "abcdefg", 
+        "subaccount": "Testing",
+        "chart_url" : "https://www.tradingview.com/chart/jbSLq0oe"
+    },
+    {
+        "message" : "pivot",
+        "side" : "buy",
+        "ticker" : "BTC-USDT",
+        "exchange" : "BYBIT",
+        "passphrase" : "motdue2024"
     }
 }

@@ -87,21 +87,23 @@ class ByBit:
     
     def _parse_ticker(self, ticker, side=None):
         parts = ticker.split('-')
+        if side != None: side = side.capitalize()  
         if len(parts) != 2:
             raise ValueError(f"Invalid ticker format: {ticker}")
         
         class TickerInfo:
-            def __init__(self, symbol, buy=None, sell=None):
+            def __init__(self, symbol, buy=None, sell=None, side=None):
                 self.symbol = symbol
                 self.buy = buy
                 self.sell = sell
+                self.side = side
         
         if side is None:
             return TickerInfo(symbol=parts[0] + parts[1])
         elif side == 'Buy':
-            return TickerInfo(symbol=parts[0] + parts[1], buy=parts[0], sell=parts[1])
+            return TickerInfo(symbol=parts[0] + parts[1], buy=parts[0], sell=parts[1], side=side)
         elif side == 'Sell':
-            return TickerInfo(symbol=parts[0] + parts[1], buy=parts[1], sell=parts[0])
+            return TickerInfo(symbol=parts[0] + parts[1], buy=parts[1], sell=parts[0], side=side)
         else:
             raise ValueError(f"Invalid side value: {side}")
     
@@ -150,7 +152,8 @@ class ByBit:
         #     logbot.logs(f'>>> Calculated size to buy: {size}')
             
         size = round(size * 0.999, 5) 
-            
+        
+           
         r = self._try_request('place_active_order', 
                             category='spot',
                             symbol= tkinfo.symbol, 

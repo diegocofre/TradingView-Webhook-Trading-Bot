@@ -6,8 +6,8 @@ from orderapi import order
 app = Flask(__name__)
 
 @app.route("/")
-def hello_trader():
-    return "<p>Hello Dawid!</p>"
+def index():
+    return app.send_static_file('index.html')
 
 @app.route("/tradingview-to-webhook-order", methods=['POST'])
 def tradingview_webhook():
