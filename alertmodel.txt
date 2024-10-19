@@ -112,5 +112,12 @@
         "ticker" : "BTC-USDT",
         "exchange" : "BYBIT",
         "passphrase" : "motdue2024"
+    },
+    {
+        "message" : "pivot",
+        "side" : "{{strategy.order.action}}",
+        "ticker" : "BTC-USDT",
+        "exchange" : "BYBIT",
+        "passphrase" : "motdue2024"
     }
 }

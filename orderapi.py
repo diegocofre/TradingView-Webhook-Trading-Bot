@@ -35,7 +35,7 @@ def global_var(payload):
         logbot.logs(">>> Exchange name not found!", True)
         return {
             "success": False,
-            "error": "subaccount name not found"
+            "error": "exchange name not found"
         }
            
     return {
@@ -114,11 +114,14 @@ def order(payload: dict):
     
     elif payload['message']== 'pivot':
         logbot.logs(">>> Order message : 'pivot'")
-        #exchange_api.exit_position(ticker)
-
         pivot_res = exchange_api.entry_spot_position(ticker, payload['side'])
         return pivot_res
     
+    elif payload['message']== 'karma':
+        logbot.logs(">>> Order message : 'karma'")
+        r = exchange_api.get_balance()
+        return str(r)
+        
     else:
         logbot.logs(f">>> Order message : '{payload['message']}'")
 

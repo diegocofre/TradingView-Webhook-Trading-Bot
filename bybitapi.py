@@ -151,7 +151,7 @@ class ByBit:
         #     size = round((size * (1 - 0.3)) / current_price, 4)
         #     logbot.logs(f'>>> Calculated size to buy: {size}')
             
-        size = round(size * 0.999, 5) 
+        size = round(size * 0.998, 6) 
         
            
         r = self._try_request('place_active_order', 
@@ -417,5 +417,31 @@ class ByBit:
         return {
             "success": True,
             "orders": orders
-        }
+        }        
+        
+    def get_balance(self):
+        r = self._try_request('get_wallet_balance')
+        if not r['success']:
+            return r 
+
+        list = r['result']['list']
+        # Encontrar el diccionario que tiene 'totalEquity'
+        account_info = next((item for item in list if 'totalEquity' in item), None)
+
+        if account_info:
+            total_equity = round(float(account_info['totalEquity']), 2)
+            return {
+                "success": True,
+                "total_equity": total_equity
+            }
+        else:
+            return {
+                "success": False,
+                "error": "totalEquity not found"
+            }      
+        
+        
+        
+        
+        
 

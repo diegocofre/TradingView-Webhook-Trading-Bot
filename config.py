@@ -13,17 +13,17 @@ RISK = 5
 BYBIT_API_KEY = 'MJAgbqRcIuvABByKYM' 
 BYBIT_API_SECRET = 'QE6Sx0vroEoANrhm6BzRzvZ4fXNzrZrbDQLc'
 
-# https://tvwebhook2-179710bde712.herokuapp.com
+# https://tvwebhookeu2-baa2380fa410.herokuapp.com/
 
 #heroku config:set LEVERAGE=50
 #heroku config:set RISK=5
 #heroku config:set BYBIT_API_KEY=MJAgbqRcIuvABByKYM
 #heroku config:set BYBIT_API_SECRET=QE6Sx0vroEoANrhm6BzRzvZ4fXNzrZrbDQLc
 
-
+# heroku git:remote -a tvwebhookeu2
 # git push heroku main
-# heroku restart --app tdwebhook2
-# heroku logs --tail --app tdwebhook2
+# heroku restart --app tvwebhookeu2
+# heroku logs --tail --app tvwebhookeu2
 
 
 

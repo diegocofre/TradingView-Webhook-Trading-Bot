@@ -9,6 +9,13 @@ app = Flask(__name__)
 def index():
     return app.send_static_file('index.html')
 
+@app.route("/karma")
+def karma():
+    logbot.logs("========= KARMA =========")         
+    data = {"message": "karma", "exchange": "BYBIT", "ticker": ""}      
+    r = order(data)
+    return r
+
 @app.route("/tradingview-to-webhook-order", methods=['POST'])
 def tradingview_webhook():
 
