@@ -109,7 +109,7 @@ class ByBit:
     
     # ================== ORDER FUNCTIONS ==================
 
-    def entry_spot_position(self, ticker, side):
+    def entry_spot_position(self, ticker, side, price):
         orders = []
         tkinfo = self._parse_ticker(ticker, side) 
 
@@ -122,52 +122,35 @@ class ByBit:
         sell_coin_info = next((item for account in list for item in account['coin'] if item['coin'] == tkinfo.sell), None)
 
         if sell_coin_info:
-           size = round(float(sell_coin_info['walletBalance']), 6)
+           coin_balance = float(sell_coin_info['walletBalance'])
            
-        if not size: 
+        if not coin_balance: 
             return {
                 "success": False,
                 "error": f"{tkinfo.sell} balance not found"
             }
 
-        logbot.logs(f'>>> Found {size} {tkinfo.sell} to sell')     
-        
-        # if side == 'Buy':
-        #     r = self._try_request('get_tickers', category='spot', symbol=tkinfo.symbol)
-        #     if not r['success']:
-        #         return r
+        logbot.logs(f'>>> Found {coin_balance} {tkinfo.sell} to sell')
+    
+        size = coin_balance / price if side == 'buy' else coin_balance
             
-        #     symbol_info = next((item for item in r['result']['list'] if item['symbol'] == tkinfo.symbol), None)
-        #     if not symbol_info:
-        #         return {
-        #         "success": False,
-        #         "error": f"Symbol {tkinfo.symbol} not found"
-        #         }
-            
-        #     current_price = float(symbol_info['lastPrice'])
-        #     logbot.logs(f'>>> Current price of {tkinfo.symbol} is {current_price}')
-            
-        #     # Calculate the quantity to buy with a 0.1 margin of error
-        #     size = round((size * (1 - 0.3)) / current_price, 4)
-        #     logbot.logs(f'>>> Calculated size to buy: {size}')
-            
-        size = round(size * 0.998, 6) 
-        
+        margin_size = size * 0.995 
            
         r = self._try_request('place_active_order', 
                             category='spot',
-                            symbol= tkinfo.symbol, 
-                            side= side, 
-                            order_type='Market', 
-                            qty=size, 
-                            time_in_force="GoodTillCancel", 
+                            symbol=tkinfo.symbol, 
+                            side=side, 
+                            order_type='limit', 
+                            qty=round(margin_size, 6),   
+                            price=price,
+                            time_in_force="ImmediateOrCancel", 
                             reduce_only=False, 
                             close_on_trigger=False)
         if not r['success']:
             r['orders'] = orders
             return r
         orders.append(r['result'])
-        logbot.logs(f">>> Order {side} {tkinfo.symbol} {size} posted with success")
+        logbot.logs(f">>> Order {side} {tkinfo.symbol} {coin_balance} at {price} posted with success")
         
         return {
             "success": True,
