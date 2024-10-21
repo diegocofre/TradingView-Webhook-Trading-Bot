@@ -109,8 +109,10 @@ class ByBit:
     
     # ================== ORDER FUNCTIONS ==================
 
-    def entry_spot_position(self, ticker, side, price):
+    def entry_spot_position(self, payload:dict, ticker):
         orders = []
+        side = payload['side']
+        price = float(payload['price'])
         tkinfo = self._parse_ticker(ticker, side) 
 
         r = self._try_request('get_wallet_balance', coin=tkinfo.sell)

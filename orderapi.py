@@ -114,7 +114,7 @@ def order(payload: dict):
     
     elif payload['message']== 'pivot':
         logbot.logs(">>> Order message : 'pivot'")
-        pivot_res = exchange_api.entry_spot_position(ticker, payload['side'], payload['price'])
+        pivot_res = exchange_api.entry_spot_position(payload, ticker )
         return pivot_res
     
     elif payload['message']== 'karma':
