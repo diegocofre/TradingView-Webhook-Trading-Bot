@@ -19,6 +19,7 @@ class ByBit:
     def _try_request(self, method: str, **kwargs):
         session = HTTP(testnet=True,api_key=self.api_key, api_secret=self.api_secret)
         category = kwargs.get('category','linear')
+        symbol=kwargs.get('symbol')
         try:
             if method == 'get_wallet_balance':
                 req = session.get_wallet_balance(accountType="UNIFIED", coin=kwargs.get('coin'))
@@ -27,7 +28,7 @@ class ByBit:
             elif method == 'place_active_order':
                 order_params = {
                     "category": category ,
-                    "symbol": kwargs.get('symbol'),
+                    "symbol": symbol,
                     "side": kwargs.get('side'),
                     "orderType": kwargs.get('order_type'),
                     "qty": kwargs.get('qty'),
@@ -42,7 +43,7 @@ class ByBit:
                 
                 req = session.place_order(**order_params)
             elif method == 'place_conditional_order':
-                req = session.place_order(category=category, symbol=kwargs.get('symbol'),
+                req = session.place_order(category=category, symbol=symbol,
                                                       side=kwargs.get('side'), order_type=kwargs.get('order_type'),
                                                       qty=kwargs.get('qty'), price=kwargs.get('price'),
                                                       basePrice=kwargs.get('base_price'), 
@@ -52,27 +53,28 @@ class ByBit:
                                                       reduceOnly=kwargs.get('reduce_only'), 
                                                       closeOnTrigger=kwargs.get('close_on_trigger'))
             elif method == 'cancel_all_active_orders':
-                req = session.cancel_all_orders(category=category, symbol=kwargs.get('symbol'))
+                req = session.cancel_all_orders(category=category, symbol=symbol)
             elif method == 'set_trading_stop':
-                req = session.set_trading_stop(category=category, symbol=kwargs.get('symbol'), 
+                req = session.set_trading_stop(category=category, symbol=symbol, 
                                                side=kwargs.get('side'), stopLoss=kwargs.get('stop_loss'))
             elif method == 'query_symbol':
                 req = session.get_instruments_info(category=category)
             elif method == 'get_tickers':
-                req = session.get_tickers(category=category, symbol=kwargs.get('symbol'))  
+                req = session.get_tickers(category=category, symbol=symbol)  
         except Exception as e:
-            logbot.logs('>>> /!\ An exception occurred: {}'.format(e), True)
+            logbot.logs('>>> An exception occurred: {}'.format(e), True)
             return {
                 "success": False,
                 "error": str(e)
             }
         if req['retCode']:
-            logbot.logs('>>> /!\ {}'.format(req['retMsg']), True)
+            logbot.logs('>>> {}'.format(req['retMsg']), True)
             return {
                     "success": False,
                     "error": req['retMsg']
                 }
         else:
+            logbot.logs(f">>> Method {method} {symbol} {category} success! ", True)
             req['success'] = True
         return req
 
@@ -115,6 +117,10 @@ class ByBit:
         price = float(payload['price'])
         tkinfo = self._parse_ticker(ticker, side) 
 
+        r = self._try_request('cancel_all_active_orders', category='spot',symbol=tkinfo.symbol)
+        if not r['success']:
+            return r
+
         r = self._try_request('get_wallet_balance', coin=tkinfo.sell)
         if not r['success']:
             return r
@@ -145,9 +151,8 @@ class ByBit:
                             order_type='limit', 
                             qty=round(margin_size, 6),   
                             price=price,
-                            time_in_force="ImmediateOrCancel", 
-                            reduce_only=False, 
-                            close_on_trigger=False)
+                            #time_in_force="FOK",
+                            )
         if not r['success']:
             r['orders'] = orders
             return r
