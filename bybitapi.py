@@ -143,12 +143,17 @@ class ByBit:
         size = coin_balance / price if side == 'buy' else coin_balance
             
         margin_size = size * 0.995 
+        
+        if(price < 0 ) : 
+            order_type = 'market' 
+        else :
+            order_type = 'limit'
            
         r = self._try_request('place_active_order', 
                             category='spot',
                             symbol=tkinfo.symbol, 
                             side=side, 
-                            order_type='limit', 
+                            order_type=order_type, 
                             qty=round(margin_size, 6),   
                             price=price,
                             #time_in_force="FOK",
