@@ -1,4 +1,4 @@
-# <h1 align="center"> Webhook TV 📈 Trading Bot 🤖 by ObiWanke </h1>
+# <h1 align="center"> Webhook TV 📈Trading Bot 🤖 by ObiWanke </h1>
 
 ![](./README_images/AlgobotBanner.png)
 
